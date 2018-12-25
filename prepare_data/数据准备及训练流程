@@ -1,0 +1,38 @@
+数据处理以及训练流程：(写一个批处理，执行以下操作)
+1、下载Wider Face 数据集，将里面的WIDER_train.zip解压到 prepare_data文件并且更名为WIDER_train
+2、下载“1.准备工作”中的landmark数据集，将landmark_train.zip数据集解压到prepare_data中
+3、运行prepare_data/gen_12net_data.py来为PNet生成人脸检测的训练数据集
+5、运行gen_imglist_pnet.py来合并两部分数据
+6、运行gen_PNet_tfrecords.py来生成PNet的tfrecords文件
+7、运行 train_models/train_PNet.py训练PNet，训练完PNet
+之后运行gen_hard_example来为RNet生成人脸检测部分的训练数据
+（论文中提到的损失值前70%的样本），这里会出错，
+详细为“Key fc1/alphas not found in checkpoint ”，具体解决方案如下：
+     1）、找到train_models/mtcnn_model.py，找到第186行与第232行，将 activation_fn = prelu删掉即可。
+     2）、同时找到main函数里，具体是215行，将网络改成相应的网络。
+9、运行 gen_imglist_rnet.py来合并两部分训练数据
+10、运行 gen_RNet_tfrecords.py来生成RNet的tfrecords，值得注意的是，这个程序需要运行四次，每次都要更改一些参数来生成neg,pos,part, landmark的tfrecords.具体如下：
+    修改gen_RNet_tfrecords.py 和 gen_ONet_tfrecords.py里相应的函数修改为下面的代码：
+
+def get_dataset(dir, net):
+    #item = 'imglists/PNet/train_%s_raw.txt' % net
+    #item = 'imglists/PNet/train_%s_landmark.txt' % net
+    #------运行四次时，依次取消下面的注释---------
+    #item = '%s/landmark_%s_aug.txt' % (net,net) #if you want to generate landmark_landmark tfrecord,uncomment this line.
+    #item = '%s/pos_%s.txt' % (net,net) #if you want to generate pos_landmark tfrecord,uncomment this line.
+    #item = '%s/neg_%s.txt' % (net,net) #if you want to generate neg_landmark tfrecord,uncomment this line.
+    item = '%s/part_%s.txt' % (net,net) #if you want to generate part_landmark tfrecord,uncomment this line.
+def get_output_filename(output_dir, name, net):
+    #st = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    #return '%s/%s%s_%s.tfrecord' % (output_dir, name, net, st)
+    #return '%s/train_PNet_landmark.tfrecord' % (output_dir)
+    #------运行四次时，依次取消下面的注释---------
+    #return '%s/landmark_landmark.tfrecord' % (output_dir) #if you want to generate landmark_landmark tfrecord,uncomment this line.
+    #return '%s/pos_landmark.tfrecord' % (output_dir) #if you want to generate pos_landmark tfrecord,uncomment this line.
+    #return '%s/neg_landmark.tfrecord' % (output_dir) #if you want to generate neg_landmark tfrecord,uncomment this line.
+    return '%s/part_landmark.tfrecord' % (output_dir) #if you want to generate part_landmark tfrecord,uncomment this line.
+
+11、运行 train_models/train_RNet.py训练RNet，训练完PNet之后运行gen_hard_example来为ONet生成人脸检测部分的训练数据
+13、运行gen_imglist_onet.py合并这两部分数据
+14、运行gen_ONet_tfrecords.py来生成ONet的tfrecords，同样还是按照上述方法跑四次。
+15、运行 train_models/train_ONet.py训练ONet，大功告成。
